@@ -49,10 +49,16 @@ TR03 (3) (4) TR02
 
 For further information, please refer to https://pinout.xyz/
 """
+
 import sys
 import time
 import logging
+import math
+# Raspi GPIO制御
 import RPi.GPIO as GPIO
+from gpiozero import MCP3202
+from gpiozero.pins.pigpio import PiGPIOFactory
+# 自作 DAQ コントローラ
 import pydaq
 
 # Pin setting
@@ -70,9 +76,9 @@ pushed_time = None
 
 
 # Measure Option
-LIMIT = 1.1e3
+# LIMIT = 1.1e3
 WARNING = 1.8e3
-CHAN = "101,120"
+CHAN = "101:113"
 # chanlist1 = "101:113"
 # chanlist2 = "201:213"
 
@@ -84,6 +90,31 @@ def blink():
         time.sleep(0.5)
         GPIO.output(led_pin, GPIO.LOW)
         time.sleep(0.5)
+
+
+def read_volume_resistance() -> int:
+    """MP3202に流れる電圧を読み取る。
+    電圧は可変抵抗により0V~3.3Vまで変化する。
+    可変抵抗の回転角に依存する割合0.0~1.0を返す。
+        3.3Vなら1.0
+        0.0Vなら0.0
+    が返る。
+
+    typical 200kΩ ~ 1MΩ
+    最大3MΩまで設定できる
+
+    1000倍してintを取って1kΩ未満の変動は無視する
+    更に3000倍して最大3000kオームまで設定可能
+    """
+    step = 3e3  # 制限値の最大: 3000kΩ
+    try:
+        factory = PiGPIOFactory()
+        adc_ch0 = MCP3202(channel=0, max_voltage=3.3, pin_factory=factory)
+        val: float = adc_ch0.value  # 分母は0～1
+        kohm: int = math.floor(val*1000)  # 0~1000 小数点以下切り捨て
+    finally:
+        factory.close()
+    return kohm * step
 
 
 class CustomFormatter(logging.Formatter):
@@ -124,6 +155,7 @@ except BaseException as e:
     sys.exit(1)
 
 try:
+    limit: int = 0
     while True:
         #
         # vol1 = daq.measure("MEAS:VOL? (@120)")
@@ -140,11 +172,13 @@ try:
             f"CALC:LIMIT:LOW {WARNING}",
             "CALC:LIMIT:LOW:STATE ON",
         )
-        res = daq.measure(*command)
-        res_csv = ",".join(str(i) for i in res)
 
-        # resの返り値の内１つでもLIMITを下回ったら
-        if any(r < LIMIT for r in res):
+        # DUMMY DATA
+        res: list[float] = [1e10]  # daq.measure(*command)
+        res_csv: str = ",".join(str(i) for i in res)
+
+        # resの返り値の内１つでもlimitを下回ったら
+        if any(r < limit for r in res):
             # Beep と画面暗転
             daq.write("SYSTEM:BEEP")
             daq.write("DISP:TEXT '[ CAUTION ]\nSHUTDOWN THE SYSTEM'")
@@ -158,6 +192,15 @@ try:
             # warning, info levelのときは画面暗転を解除
             daq.write("DISP:TEXT:CLEAR")
             logger.info(res_csv)
+
+        # 制限値を可変抵抗の回し角から読み込む
+        new_limit = read_volume_resistance()
+        if limit != new_limit:
+            limit = new_limit
+            display_limit_str = "{:>6d}kOhm".format(int(limit/1000))
+            print(f"Limit value changed: {display_limit_str}")
+            # 表示は右詰め、kΩ表示、小数点以下切り捨て
+            daq.write(f"DISP:TEXT 'Set alarm {display_limit_str}'")
 
         # ボタンを押した瞬間の検出
         if GPIO.input(switch_pin) == GPIO.LOW and pushed_time is None:

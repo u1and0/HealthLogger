@@ -54,37 +54,15 @@ import sys
 import time
 import logging
 import math
-import subprocess
-# Raspi GPIO制御
-import RPi.GPIO as GPIO
 from gpiozero import MCP3202
 from gpiozero.pins.pigpio import PiGPIOFactory
 # 自作 DAQ コントローラ
 import pydaq
 
-# Pin setting
-led_pin = 17
-switch_pin = 18
-# GPIO setting
-GPIO.setmode(GPIO.BCM)
-# set IN mode and enable pull up
-GPIO.setup(switch_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(led_pin, GPIO.OUT)  # set OUT mode
-GPIO.output(led_pin, GPIO.LOW)  # default OFF
-
 # Measure Option
 WARNING = 1.8e3
 # chanlist1 = "101:113"
 # chanlist2 = "201:213"
-
-
-def blink():
-    """blink 5 times per 0.5 sec"""
-    for _ in range(5):
-        GPIO.output(led_pin, GPIO.HIGH)
-        time.sleep(0.5)
-        GPIO.output(led_pin, GPIO.LOW)
-        time.sleep(0.5)
 
 
 def read_volume_resistance() -> int:
@@ -192,26 +170,6 @@ try:
             # 表示は右詰め、kΩ表示、小数点以下切り捨て
             daq.write(f"DISP:TEXT 'Set alarm {display_limit_str}'")
 
-        # ボタンを押した瞬間の検出
-        if GPIO.input(switch_pin) == GPIO.LOW and pushed_time is None:
-            pushed_time = time.time()
-
-        # ボタンを離した瞬間の検出
-        if GPIO.input(switch_pin) == GPIO.HIGH and pushed_time is not None:
-            button_duration = time.time() - pushed_time
-
-            if button_duration < 1.0:
-                logger.warning("Receiving reboot signal.")
-                blink()  # 短押しで点滅
-                subprocess.run(["reboot"])
-            else:
-                logger.warning("Receiving shutdown signal.")
-                GPIO.output(led_pin, GPIO.HIGH)  # 長押しで点灯
-                subprocess.run(["shutdown", "-h", "0"])
-
-            # スイッチを離したらタイムスタンプをリセット
-            pushed_time = None
-
         # 毎秒測定
         time.sleep(1)
 
@@ -221,5 +179,3 @@ finally:
     daq.write("DISP:TEXT:CLEAR")
     daq.write("*CLS")
     daq.close()
-    # GPIO開放
-    GPIO.cleanup()

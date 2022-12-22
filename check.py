@@ -54,6 +54,7 @@ import sys
 import time
 import logging
 import math
+import subprocess
 # Raspi GPIO制御
 import RPi.GPIO as GPIO
 from gpiozero import MCP3202
@@ -71,14 +72,8 @@ GPIO.setup(switch_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(led_pin, GPIO.OUT)  # set OUT mode
 GPIO.output(led_pin, GPIO.LOW)  # default OFF
 
-# for closure
-pushed_time = None
-
-
 # Measure Option
-# LIMIT = 1.1e3
 WARNING = 1.8e3
-CHAN = "101:113"
 # chanlist1 = "101:113"
 # chanlist2 = "201:213"
 
@@ -131,21 +126,15 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 # Set stream handler
-stream_handler = logging.FileHandler("output.log", "w", "utf-8")
-stream_handler.setLevel(logging.DEBUG)
-
-# Set file handler
-file_handler = logging.StreamHandler()
-file_handler .setLevel(logging.DEBUG)
+stream_handler = logging.StreamHandler()
+stream_handler .setLevel(logging.DEBUG)
 
 # Set log format
 formatter = CustomFormatter("[ %(levelname)s ] %(asctime)s: %(message)s")
 stream_handler.setFormatter(formatter)
-file_handler.setFormatter(formatter)
 
 # Add handlers to logger
 logger.addHandler(stream_handler)
-logger.addHandler(file_handler)
 
 # Initialize instruments
 try:
@@ -155,6 +144,7 @@ except BaseException as e:
     sys.exit(1)
 
 try:
+    pushed_time = None
     limit: int = 0
     while True:
         #
@@ -162,7 +152,7 @@ try:
         #
         command = (
             # Measure resistance
-            f"CONF:RES 10E6,10, (@{CHAN})",
+            f"CONF:RES 10E6,10, (@101:102)",
             # 10V以上の電圧があればスイッチが入っている(@120)で測らない
             # "CONF:RES 10E6,10, (@{})".format(chanlist2 if vol1>10 else chanlist1)
             "RES:NPLC 1",
@@ -174,7 +164,7 @@ try:
         )
 
         # DUMMY DATA
-        res: list[float] = [1e10]  # daq.measure(*command)
+        res: list[float] = daq.measure(*command)
         res_csv: str = ",".join(str(i) for i in res)
 
         # resの返り値の内１つでもlimitを下回ったら
@@ -213,11 +203,11 @@ try:
             if button_duration < 1.0:
                 logger.warning("Receiving reboot signal.")
                 blink()  # 短押しで点滅
-                # subprocess.run(["reboot"])
+                subprocess.run(["reboot"])
             else:
                 logger.warning("Receiving shutdown signal.")
                 GPIO.output(led_pin, GPIO.HIGH)  # 長押しで点灯
-                # subprocess.run(["shutdown","-h","0"])
+                subprocess.run(["shutdown", "-h", "0"])
 
             # スイッチを離したらタイムスタンプをリセット
             pushed_time = None

@@ -12,6 +12,7 @@ $ pip install -r requirements.txt
 * pyusb
 * pyvisa
 * pyvisa-py
+* pigpio
 
 ## 測定器の配線
 
@@ -76,6 +77,11 @@ $ pip install -r requirements.txt
   LED
     \----- GND (39) (40) GPIO21  ---\
             |_________/ o___________|
+
+(SCL) o|----------|
+(SDA) o| pFc8563  |
+(GND) o| Module   |
+(Vcc) o|----------|
 
                     |-----|
       [ GND ]--( 4 )|     |( 5 )---GPIO10 (19)

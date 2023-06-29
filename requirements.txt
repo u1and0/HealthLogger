@@ -1,3 +1,4 @@
 pyusb
 pyvisa
 pyvisa-py
+pigpio

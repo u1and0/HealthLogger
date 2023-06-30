@@ -8,6 +8,7 @@ pip install -r requirements.txt
 * pyusb
 * pyvisa
 * pyvisa-py
+* pigpio
 
 ## 配線
 下図のようにGPIO26とGNDの間にLED, GPIO21とGNDの間にスイッチを配置します。
@@ -30,8 +31,8 @@ pip install -r requirements.txt
 
         J8:
            3V3  (1) (2)  5V
-         GPIO2  (3) (4)  5V
-         GPIO3  (5) (6)  GND
+   (SDA) GPIO2  (3) (4)  5V
+   (SCL) GPIO3  (5) (6)  GND
          GPIO4  (7) (8)  GPIO14
            GND  (9) (10) GPIO15
         GPIO17 (11) (12) GPIO18

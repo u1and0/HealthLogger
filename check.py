@@ -61,7 +61,7 @@ stream_handler = logging.StreamHandler()
 stream_handler .setLevel(logging.DEBUG)
 
 # Set log format
-formatter = CustomFormatter("[ %(levelname)s ] %(asctime)s: %(message)s")
+formatter = CustomFormatter("[ %(levelname)s ] %(asctime)s,%(message)s")
 stream_handler.setFormatter(formatter)
 
 # Add handlers to logger
@@ -119,7 +119,7 @@ try:
         if limit != new_limit:
             limit = new_limit
             display_limit_str = "{:>6d}kOhm".format(int(limit/1000))
-            logger.info(f"Limit value changed: {display_limit_str}")
+            logger.debug(f"Limit value changed: {display_limit_str}")
             # 表示は右詰め、kΩ表示、小数点以下切り捨て
             daq.write(f"DISP:TEXT 'Set alarm {display_limit_str}'")
 

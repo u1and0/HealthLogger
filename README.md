@@ -5,8 +5,11 @@
 
 ```
 $ git clone https://github.com/u1and0/HealthLogger
-$ pip install -r requirements.txt
+$ sudo pip install -r requirements.txt
 ```
+
+/etc/rc.local の実行者がrootなので、かならずrootでpip installをする必要があります。
+
 
 ## 依存関係
 * pyusb

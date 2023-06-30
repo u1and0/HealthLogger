@@ -38,14 +38,13 @@ def read_volume_resistance() -> int:
         val: float = adc_ch0.value  # 0～1
     finally:
         factory.close()
-    kohm: int = math.floor(max_val / step * val ** 2)  # 0~330 小数点以下切り捨て
+    kohm: int = math.floor(max_val / step * val**2)  # 0~330 小数点以下切り捨て
     # 指数関数でカーブを付けて低い値で調整しやすく
     return kohm * step
 
 
 class CustomFormatter(logging.Formatter):
     """[WARNING] -> [WARN] のように表示を先頭4文字に変更するカスタムフォーマッタ"""
-
     def format(self, record):
         record.levelname = record.levelname[:4]
         return super().format(record)
@@ -58,7 +57,7 @@ logger.setLevel(logging.DEBUG)
 
 # Set stream handler
 stream_handler = logging.StreamHandler()
-stream_handler .setLevel(logging.DEBUG)
+stream_handler.setLevel(logging.DEBUG)
 
 # Set log format
 formatter = CustomFormatter("[ %(levelname)s ] %(asctime)s,%(message)s")
@@ -118,7 +117,7 @@ try:
         new_limit = read_volume_resistance()
         if limit != new_limit:
             limit = new_limit
-            display_limit_str = "{:>6d}kOhm".format(int(limit/1000))
+            display_limit_str = "{:>6d}kOhm".format(int(limit / 1000))
             logger.debug(f"Limit value changed: {display_limit_str}")
             # 表示は右詰め、kΩ表示、小数点以下切り捨て
             daq.write(f"DISP:TEXT 'Set alarm {display_limit_str}'")

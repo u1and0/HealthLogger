@@ -29,18 +29,17 @@ def read_volume_resistance() -> int:
 
     typical 200kΩ ~ 1MΩ
     最大3MΩまで設定できる
-
-    1000倍してintを取って1kΩ未満の変動は無視する
-    更に3000倍して最大3000kオームまで設定可能
     """
-    step = 3e3  # 制限値の最大: 3000kΩ
+    step = 10000  # kΩオーダー & step 10kΩ
+    max_val = 3.3e6  # limit調整可能値 <3.3MΩ
     try:
         factory = PiGPIOFactory()
         adc_ch0 = MCP3202(channel=0, max_voltage=3.3, pin_factory=factory)
-        val: float = adc_ch0.value  # 分母は0～1
-        kohm: int = math.floor(val*1000)  # 0~1000 小数点以下切り捨て
+        val: float = adc_ch0.value  # 0～1
     finally:
         factory.close()
+    kohm: int = math.floor(max_val / step * val ** 2)  # 0~330 小数点以下切り捨て
+    # 指数関数でカーブを付けて低い値で調整しやすく
     return kohm * step
 
 
@@ -120,7 +119,7 @@ try:
         if limit != new_limit:
             limit = new_limit
             display_limit_str = "{:>6d}kOhm".format(int(limit/1000))
-            print(f"Limit value changed: {display_limit_str}")
+            logger.info(f"Limit value changed: {display_limit_str}")
             # 表示は右詰め、kΩ表示、小数点以下切り捨て
             daq.write(f"DISP:TEXT 'Set alarm {display_limit_str}'")
 

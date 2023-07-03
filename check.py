@@ -15,8 +15,6 @@ import pydaq
 
 # Measure Option
 WARNING = 1.8e3
-# chanlist1 = "101:113"
-# chanlist2 = "201:213"
 
 
 def read_volume_resistance() -> int:
@@ -43,8 +41,29 @@ def read_volume_resistance() -> int:
     return kohm * step
 
 
+def measure_unless_working(vol: int, start_chan: int, end_chan: int) -> list[float]:
+    """ 電圧がかかっていない方のモジュールの抵抗値を測定する
+    volで与えられたチャンネルの電圧を測定する
+    電圧が10V未満であれば、接続されているので抵抗値を測ってはいけない。
+    (抵抗値を測っても参考にならない。機材が破損するわけではない。)
+    start_chanからend_chanで与えられたチャンネルの抵抗値を測定する。
+    """
+    # 10V以上の電圧があればスイッチが入っているので測らない
+    if daq.voltage(vol) > 10:
+        return []
+    cmd = (
+        "CONF:RES 10E6,10, (@{}:{})".format(start_chan, end_chan),
+        "RES:NPLC 1",
+        # Warning message on DAQ970A
+        f"CALC:LIMIT:LOW {WARNING}",
+        "CALC:LIMIT:LOW:STATE ON",
+    )
+    return daq.measure(*cmd)
+
+
 class CustomFormatter(logging.Formatter):
     """[WARNING] -> [WARN] のように表示を先頭4文字に変更するカスタムフォーマッタ"""
+
     def format(self, record):
         record.levelname = record.levelname[:4]
         return super().format(record)
@@ -74,31 +93,18 @@ except BaseException as e:
     sys.exit(1)
 
 try:
-    pushed_time = None
     limit: int = 0
     while True:
-        #
-        # vol1 = daq.measure("MEAS:VOL? (@120)")
-        #
-        command = (
-            # Measure resistance
-            f"CONF:RES 10E6,10, (@101:102)",
-            # 10V以上の電圧があればスイッチが入っている(@120)で測らない
-            # "CONF:RES 10E6,10, (@{})".format(chanlist2 if vol1>10 else chanlist1)
-            "RES:NPLC 1",
-
-            # Set alert state
-            # Display Red font
-            f"CALC:LIMIT:LOW {WARNING}",
-            "CALC:LIMIT:LOW:STATE ON",
-        )
-
-        # DUMMY DATA
-        res: list[float] = daq.measure(*command)
+        # 10Vかかっていない方のモジュールの抵抗値を測定する
+        # float リストか空のリストが返ってくる
+        res1 = measure_unless_working(120, 101, 102)
+        res2 = measure_unless_working(220, 201, 202)
+        res = res1 + res2
         res_csv: str = ",".join(str(i) for i in res)
 
         # resの返り値の内１つでもlimitを下回ったら
         if any(r < limit for r in res):
+            # Display ERROR message on DAQ970A
             # Beep と画面暗転
             daq.write("SYSTEM:BEEP")
             daq.write("DISP:TEXT '[ CAUTION ]\nSHUTDOWN THE SYSTEM'")

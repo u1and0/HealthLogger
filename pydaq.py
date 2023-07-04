@@ -171,7 +171,7 @@ class Daq:
         res = self.query(*message, delay=delay, **kwargs)
         return Daq.parse_float(res)
 
-    def query(self, *message: str, delay: float = 0.0,
+    def query(self, *message: str,
             delay: float = 0.0,
             termination: Optional[str] = None,
             encoding: Optional[str] = None):
@@ -201,7 +201,6 @@ class Daq:
 
         return self.instr.read(termination=termination,
                     encoding=encoding)
-)
 
     def write(self, *args, **kwargs):
         """ Same as daq.instr.write()

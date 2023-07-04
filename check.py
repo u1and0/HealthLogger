@@ -62,6 +62,24 @@ def measure_unless_working(vol: int, start_chan: int, end_chan: int) -> list[flo
     )
     return daq.measure(*cmd, delay=12)
 
+def error_check(res: list[float], limit:float) -> None:
+    res_csv: str = ",".join(str(i) for i in res)
+    # resの返り値の内１つでもlimitを下回ったら
+    if any(r < limit for r in res):
+        # Display ERROR message on DAQ970A
+        # Beep と画面暗転
+        daq.write("SYSTEM:BEEP")
+        daq.write("DISP:TEXT '[ CAUTION ]\nSHUTDOWN THE SYSTEM'")
+        logger.error(res_csv)
+    # resの返り値の内１つでもWARNINGを下回ったら
+    elif any(r < WARNING for r in res):
+        # warning, info levelのときは画面暗転を解除
+        daq.write("DISP:TEXT:CLEAR")
+        logger.warning(res_csv)
+    else:
+        # warning, info levelのときは画面暗転を解除
+        daq.write("DISP:TEXT:CLEAR")
+        logger.info(res_csv)
 
 class CustomFormatter(logging.Formatter):
     """[WARNING] -> [WARN] のように表示を先頭4文字に変更するカスタムフォーマッタ"""
@@ -100,34 +118,18 @@ try:
         # 10Vかかっていない方のモジュールの抵抗値を測定する
         # float リストか空のリストが返ってくる
         res1 = measure_unless_working(120, 101, 113)
+        error_check(res1, limit)
         res2 = measure_unless_working(220, 201, 213)
-        res = res1 + res2
-        res_csv: str = ",".join(str(i) for i in res)
+        error_check(res2, limit)
 
-        # resの返り値の内１つでもlimitを下回ったら
-        if any(r < limit for r in res):
-            # Display ERROR message on DAQ970A
-            # Beep と画面暗転
-            daq.write("SYSTEM:BEEP")
-            daq.write("DISP:TEXT '[ CAUTION ]\nSHUTDOWN THE SYSTEM'")
-            logger.error(res_csv)
-        # resの返り値の内１つでもWARNINGを下回ったら
-        elif any(r < WARNING for r in res):
-            # warning, info levelのときは画面暗転を解除
-            daq.write("DISP:TEXT:CLEAR")
-            logger.warning(res_csv)
-        else:
-            # warning, info levelのときは画面暗転を解除
-            daq.write("DISP:TEXT:CLEAR")
-            logger.info(res_csv)
 
         # 制限値を可変抵抗の回し角から読み込む
         new_limit = read_volume_resistance()
         if limit != new_limit:
             limit = new_limit
+            # 表示は右詰め、kΩ表示、小数点以下切り捨て
             display_limit_str = "{:>6d}kOhm".format(int(limit / 1000))
             logger.debug(f"Limit value changed: {display_limit_str}")
-            # 表示は右詰め、kΩ表示、小数点以下切り捨て
             daq.write(f"DISP:TEXT 'Set alarm {display_limit_str}'")
 
         # 毎秒測定

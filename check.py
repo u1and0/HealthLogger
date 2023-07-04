@@ -14,7 +14,7 @@ from gpiozero.pins.pigpio import PiGPIOFactory
 import pydaq
 
 # Measure Option
-WARNING = 1.8e3
+WARNING = 2000
 
 
 def read_volume_resistance() -> int:
@@ -62,24 +62,26 @@ def measure_unless_working(vol: int, start_chan: int, end_chan: int) -> list[flo
     )
     return daq.measure(*cmd, delay=12)
 
-def error_check(res: list[float], limit:float) -> None:
-    res_csv: str = ",".join(str(i) for i in res)
+def error_check(index:int, res: list[float], limit:float) -> None:
+    """ resの返り値の内１つでもlimitを下回ったらBeep
+    """
+    log_msg: str = ",".join(str(i) for i in [index] + res)
     # resの返り値の内１つでもlimitを下回ったら
     if any(r < limit for r in res):
         # Display ERROR message on DAQ970A
         # Beep と画面暗転
         daq.write("SYSTEM:BEEP")
         daq.write("DISP:TEXT '[ CAUTION ]\nSHUTDOWN THE SYSTEM'")
-        logger.error(res_csv)
+        logger.error(log_msg)
     # resの返り値の内１つでもWARNINGを下回ったら
     elif any(r < WARNING for r in res):
         # warning, info levelのときは画面暗転を解除
         daq.write("DISP:TEXT:CLEAR")
-        logger.warning(res_csv)
+        logger.warning(log_msg)
     else:
         # warning, info levelのときは画面暗転を解除
         daq.write("DISP:TEXT:CLEAR")
-        logger.info(res_csv)
+        logger.info(log_msg)
 
 class CustomFormatter(logging.Formatter):
     """[WARNING] -> [WARN] のように表示を先頭4文字に変更するカスタムフォーマッタ"""
@@ -117,10 +119,13 @@ try:
     while True:
         # 10Vかかっていない方のモジュールの抵抗値を測定する
         # float リストか空のリストが返ってくる
-        res1 = measure_unless_working(120, 101, 113)
-        error_check(res1, limit)
-        res2 = measure_unless_working(220, 201, 213)
-        error_check(res2, limit)
+        chan = (
+                (120, 101, 113),
+                (220, 201, 213),
+                )
+        for i,c in enumerate(chan, 1):
+            res = measure_unless_working(*c)
+            error_check(i, res, limit)
 
 
         # 制限値を可変抵抗の回し角から読み込む

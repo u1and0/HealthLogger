@@ -8,7 +8,7 @@ case insensitive なので upper caseでも lower caseでもコマンドを受�
 このコードではupper caseで統一して記述します。
 """
 import time
-from typing import Union
+from typing import Union, Optional
 from enum import Enum
 import pyvisa
 
@@ -171,7 +171,10 @@ class Daq:
         res = self.query(*message, delay=delay, **kwargs)
         return Daq.parse_float(res)
 
-    def query(self, *message: str, delay: float = 0.0, **kwargs):
+    def query(self, *message: str, delay: float = 0.0,
+            delay: float = 0.0,
+            termination: Optional[str] = None,
+            encoding: Optional[str] = None):
         """Send any command to DAQ
 
         ex)
@@ -185,15 +188,20 @@ class Daq:
         """
         # Write all messages one by one
         for command in message:
-            self.instr.write(command, **kwargs)
+            self.instr.write(command,
+                    termination=termination,
+                    encoding=encoding)
+
+        # Finally read buffer from instrument
+        self.instr.write("READ?")
 
         # Wait for command processing
         if delay > 0.0:
             time.sleep(delay)
 
-        # Finally read buffer from instrument
-        self.instr.write("READ?")
-        return self.instr.read()
+        return self.instr.read(termination=termination,
+                    encoding=encoding)
+)
 
     def write(self, *args, **kwargs):
         """ Same as daq.instr.write()

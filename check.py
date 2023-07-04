@@ -49,8 +49,10 @@ def measure_unless_working(vol: int, start_chan: int, end_chan: int) -> list[flo
     start_chanからend_chanで与えられたチャンネルの抵抗値を測定する。
     """
     # 10V以上の電圧があればスイッチが入っているので測らない
-    if daq.voltage(vol) > 10:
+    is_working = daq.voltage(vol) > 10
+    if is_working:
         return []
+
     cmd = (
         "CONF:RES 10E6,10, (@{}:{})".format(start_chan, end_chan),
         "RES:NPLC 1",
@@ -58,7 +60,7 @@ def measure_unless_working(vol: int, start_chan: int, end_chan: int) -> list[flo
         f"CALC:LIMIT:LOW {WARNING}",
         "CALC:LIMIT:LOW:STATE ON",
     )
-    return daq.measure(*cmd)
+    return daq.measure(*cmd, delay=12)
 
 
 class CustomFormatter(logging.Formatter):
@@ -97,8 +99,8 @@ try:
     while True:
         # 10Vかかっていない方のモジュールの抵抗値を測定する
         # float リストか空のリストが返ってくる
-        res1 = measure_unless_working(120, 101, 102)
-        res2 = measure_unless_working(220, 201, 202)
+        res1 = measure_unless_working(120, 101, 113)
+        res2 = measure_unless_working(220, 201, 213)
         res = res1 + res2
         res_csv: str = ",".join(str(i) for i in res)
 
